@@ -114,7 +114,7 @@ def patch_incomplete_response(format_prompt, initial_response, do_print=True):
     return initial_response
 
 
-def get_response_with_patch(format_prompt, initial_response, do_print=True):
+def get_response_with_patch(format_prompt, do_print=True):
     """
     Get the response with patching
     """
