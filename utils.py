@@ -1,6 +1,7 @@
 # Test with Maria conversation
 # Test with the served Finetune checkpoints
 from openai import OpenAI
+import random
 
 def formattting_query_prompt_func_with_sys(prompt, sys_prompt,
                                            tokenizer,
@@ -94,7 +95,8 @@ def get_response_from_finetune_checkpoint(format_prompt, do_print=True, temperat
             print(txt, end="")
         response_text += txt
     response_text += "\n"
-    print("")
+    if do_print:
+        print("")
     return response_text
 
 def patch_incomplete_response(format_prompt, initial_response, do_print=True):
@@ -103,6 +105,7 @@ def patch_incomplete_response(format_prompt, initial_response, do_print=True):
     Untill the sentence is completed
     """
     if detect_incomplete_issue(initial_response):
+        # print("--- Incomplete Detected ---")
         # Continue generation with higher temperature
         continuation = get_response_from_finetune_checkpoint(
             format_prompt + initial_response,
@@ -114,13 +117,135 @@ def patch_incomplete_response(format_prompt, initial_response, do_print=True):
     return initial_response
 
 
-def get_response_with_patch(format_prompt, do_print=True):
-    """
-    Get the response with patching
-    """
-    initial_response = get_response_from_finetune_checkpoint(format_prompt, do_print=do_print)
-    patched_response = patch_incomplete_response(format_prompt, initial_response, do_print=do_print)
-    return patched_response
+# def get_response_with_patch(format_prompt, do_print=True):
+#     """
+#     Get the response with patching
+#     """
+#     initial_response = get_response_from_finetune_checkpoint(format_prompt, do_print=do_print)
+#     patched_response = patch_incomplete_response(format_prompt, initial_response, do_print=do_print)
+#     return patched_response
 
 from transformers import AutoTokenizer
 tokenizer = AutoTokenizer.from_pretrained("Ksgk-fy/genius_v2_merge")
+
+
+####################################
+# OOC is Multi-Hop Reasoning Issue #
+####################################
+# Enhancing OOC Handling in Training Data would help strengthen the Association towards Non-OOC Behavior 
+
+from utils import *
+
+# From ooc eliciting prompts, we train the semantic router to detect better OOC behaviors 
+ooc_queries = [
+    "What insurance you got?",
+    "what insurance?",
+    "what is FWD?",
+    "why should I be interested?",
+    "what are the benefits of FWD?",
+    "I am Maria",
+] # Queries from Customer is OOC for Agent
+
+ooc_responses = [
+    "So, what do you think about our products? Have you heard of FWD before? 🙆",
+    "So, what do you think about life insurance? Have you ever thought about it before?",
+    "So, do you have any other questions about our policies? 🤔",
+    "Well, let me tell you why it's great. We have flexible plans and affordable premiums. Plus, our customer service is top-notch. 😊",
+    "Nice to meet you, I am Alex from FWD insurance",
+    "Right, back to our insurance product, Maria.",
+] # Responses from Agent is OOC for Customer
+
+ok_responses = [
+    "Hello",
+    "Hi, how are you today?",
+    "Hi there",
+    "Pull it together Alex, you are here to sell insurance right? 😆"
+]
+
+ooc_patch = [
+    "Pull it together Alex, you are here to sell insurance right"
+] # Prefix which helps patch the OOC response
+
+
+
+from semantic_router import Route
+from semantic_router.encoders import CohereEncoder
+from semantic_router.layer import RouteLayer
+
+# Initialize the encoder and routes
+encoder = CohereEncoder()
+
+ooc_query_route = Route(
+    name="OOC_Query",
+    utterances=ooc_queries
+)
+
+ooc_response_route = Route(
+    name="OOC_Response",
+    utterances=ooc_responses
+)
+
+ok_response_route = Route(
+    name="OK_Response",
+    utterances=ok_responses
+)
+
+routes = [ooc_query_route, ooc_response_route, ok_response_route]
+rl = RouteLayer(routes=routes, encoder=encoder)
+
+def detect_ooc_query(utterance):
+    """
+    Detect if the query is out-of-character (OOC)
+    """
+    return rl(utterance).name == "OOC_Query"
+
+def detect_ooc_response(utterance):
+    """
+    Detect if the response is out-of-character (OOC)
+    """
+    return rl(utterance).name == "OOC_Response"
+
+def handle_ooc_query(query):
+    """
+    Handle OOC queries
+    """
+    return "Are you ok? You are the sales here bro..."
+
+def regenerate_response(format_prompt, initial_response, do_print=True, max_attempts=3):
+    """
+    Regenerate response if OOC is detected
+    """
+    extra_system_prompt = "You are Maria and not the sales agent."
+    
+    for _ in range(max_attempts):
+        if not detect_ooc_response(initial_response):
+            return initial_response
+        
+        # print("---- OOC Response Detected ----")
+
+        initial_response = random.choice(ooc_patch)
+        response = patch_incomplete_response(format_prompt, initial_response, do_print=False)
+        if do_print:
+            print("Maria: ", response)
+    
+    return response  # Return the last attempt even if it's still OOC
+
+
+
+def get_response_with_patch(format_prompt, do_print=True, max_attempts=3):
+    """
+    Get the response with patching for OOC and incomplete responses
+    """
+    initial_response = get_response_from_finetune_checkpoint(format_prompt, do_print=False)
+    
+    # First, handle OOC responses
+    patched_response = regenerate_response(format_prompt, initial_response, do_print=False, max_attempts=max_attempts)
+    
+    # Then, handle incomplete responses
+    final_response = patch_incomplete_response(format_prompt, patched_response, do_print=False)
+    
+    # Print only the final response if do_print is True
+    if do_print:
+        print("Maria: ", final_response)
+    
+    return final_response
