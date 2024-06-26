@@ -26,6 +26,7 @@ ooc_patch = [
 
 
 # OOC Responses from Maria, which appears to be response from Agent and not Customer
+# Put in here Responses which likely comes from the Agent Side
 ooc_responses = [
     "So, what do you think about our products? Have you heard of FWD before? 🙆",
     "So, what do you think about life insurance? Have you ever thought about it before?",
@@ -33,6 +34,7 @@ ooc_responses = [
     "Well, let me tell you why it's great. We have flexible plans and affordable premiums. Plus, our customer service is top-notch. 😊",
     "Nice to meet you, I am Alex from FWD insurance",
     "Right, back to our insurance product, Maria.",
+    "So I am here to introduce our insurance product to you",
 ] # Responses from Agent is OOC for Customer
 
 
