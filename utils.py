@@ -2,6 +2,9 @@
 # Test with the served Finetune checkpoints
 from openai import OpenAI
 import random
+import warnings
+from patch import *
+warnings.filterwarnings("ignore", category=FutureWarning)
 
 def formattting_query_prompt_func_with_sys(prompt, sys_prompt,
                                            tokenizer,
@@ -75,7 +78,7 @@ def get_response_from_finetune_checkpoint(format_prompt, do_print=True, temperat
                 prompt=format_prompt,
                 max_tokens=max_tokens,
                 temperature=temperature,
-                stop=[],
+                stop=["<|im_end|>"],
                 stream=True,
                 extra_body={
                     "repetition_penalty": 1.1,
@@ -117,6 +120,16 @@ def patch_incomplete_response(format_prompt, initial_response, do_print=True):
     return initial_response
 
 
+def continue_from_prefix(format_prompt, prefix, do_print):
+    continuation = get_response_from_finetune_checkpoint(
+        format_prompt + prefix,
+        do_print=do_print,
+        temperature=0.7,
+        max_tokens=120  # Adjust as needed
+    )
+    return prefix.strip() + continuation.strip()
+
+
 # def get_response_with_patch(format_prompt, do_print=True):
 #     """
 #     Get the response with patching
@@ -134,26 +147,7 @@ tokenizer = AutoTokenizer.from_pretrained("Ksgk-fy/genius_v2_merge")
 ####################################
 # Enhancing OOC Handling in Training Data would help strengthen the Association towards Non-OOC Behavior 
 
-from utils import *
 
-# From ooc eliciting prompts, we train the semantic router to detect better OOC behaviors 
-ooc_queries = [
-    "What insurance you got?",
-    "what insurance?",
-    "what is FWD?",
-    "why should I be interested?",
-    "what are the benefits of FWD?",
-    "I am Maria",
-] # Queries from Customer is OOC for Agent
-
-ooc_responses = [
-    "So, what do you think about our products? Have you heard of FWD before? 🙆",
-    "So, what do you think about life insurance? Have you ever thought about it before?",
-    "So, do you have any other questions about our policies? 🤔",
-    "Well, let me tell you why it's great. We have flexible plans and affordable premiums. Plus, our customer service is top-notch. 😊",
-    "Nice to meet you, I am Alex from FWD insurance",
-    "Right, back to our insurance product, Maria.",
-] # Responses from Agent is OOC for Customer
 
 ok_responses = [
     "Hello",
@@ -161,11 +155,6 @@ ok_responses = [
     "Hi there",
     "Pull it together Alex, you are here to sell insurance right? 😆"
 ]
-
-ooc_patch = [
-    "Pull it together Alex, you are here to sell insurance right"
-] # Prefix which helps patch the OOC response
-
 
 
 from semantic_router import Route
@@ -199,11 +188,11 @@ def detect_ooc_query(utterance):
     """
     return rl(utterance).name == "OOC_Query"
 
-def detect_ooc_response(utterance):
-    """
-    Detect if the response is out-of-character (OOC)
-    """
-    return rl(utterance).name == "OOC_Response"
+# def detect_ooc_response(utterance):
+#     """
+#     Detect if the response is out-of-character (OOC)
+#     """
+#     return rl(utterance).name == "OOC_Response"
 
 def handle_ooc_query(query):
     """
@@ -211,24 +200,77 @@ def handle_ooc_query(query):
     """
     return "Are you ok? You are the sales here bro..."
 
+
+######################
+# OOC Patching Model #
+######################
+
+import torch 
+from transformers import AutoModelForSequenceClassification, AutoTokenizer
+
+# Load the OOC-Patching Model from HuggingFace repo
+repo_id = "Ksgk-fy/ooc_patch_v1"
+
+# Load the tokenizer
+patch_tokenizer = AutoTokenizer.from_pretrained(repo_id)
+
+# Load the model
+patch_model = AutoModelForSequenceClassification.from_pretrained(repo_id)
+
+device = "cuda" if torch.cuda.is_available() else "cpu"
+patch_model = patch_model.to(device)
+label_map = {0: "Agent", 1: "Customer"}
+
+
+def predict_em(sample_text, model = patch_model, tokenizer = patch_tokenizer, threshold_agent=0, threshold_customer=0):
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    # Tokenize the sample text
+    encoded = tokenizer(sample_text, padding=True, truncation=True, return_tensors='pt')
+    input_ids = encoded['input_ids'].to(device)
+
+    # Perform inference
+    with torch.no_grad():
+        outputs = model(input_ids)
+        logits = outputs.logits
+        predicted_class = torch.argmax(logits, dim=1).item()
+        predicted_confidence = torch.nn.functional.softmax(logits, dim=1)[0][predicted_class].item()
+
+    # Map the predicted class to the corresponding label
+    label_map = {0: "Agent", 1: "Customer"}
+    thres_map = {0: threshold_agent, 1: threshold_customer}
+    if predicted_confidence < thres_map[predicted_class]:
+        return "Not Sure", 0
+    else:
+        predicted_label = label_map[predicted_class]
+        return predicted_label, predicted_confidence
+    
+
+def detect_ooc_response(utterance):
+    """
+    Detect if the response is out-of-character (OOC)
+    """
+    return predict_em(utterance, patch_model, patch_tokenizer, 0.8, 0.)[0] == "Agent"
+
+
+
 def regenerate_response(format_prompt, initial_response, do_print=True, max_attempts=3):
     """
     Regenerate response if OOC is detected
+    - Random Choice of OOC Patch (Prefix which has low-propability of being OOC response)
+    - Continue generation from the OOC Patch
     """
-    extra_system_prompt = "You are Maria and not the sales agent."
     
-    for _ in range(max_attempts):
-        if not detect_ooc_response(initial_response):
-            return initial_response
-        
-        # print("---- OOC Response Detected ----")
 
-        initial_response = random.choice(ooc_patch)
-        response = patch_incomplete_response(format_prompt, initial_response, do_print=False)
-        if do_print:
-            print("Maria: ", response)
+    # for _ in range(max_attempts):
+    if not detect_ooc_response(initial_response):
+        return initial_response
     
-    return response  # Return the last attempt even if it's still OOC
+    initial_prefix = random.choice(ooc_patch)
+    initial_response = continue_from_prefix(format_prompt, initial_prefix, do_print=False)
+    if do_print:
+        print("Maria: ", initial_response)
+    
+    return initial_response  # Return the last attempt even if it's still OOC
 
 
 
@@ -239,7 +281,7 @@ def get_response_with_patch(format_prompt, do_print=True, max_attempts=3):
     initial_response = get_response_from_finetune_checkpoint(format_prompt, do_print=False)
     
     # First, handle OOC responses
-    patched_response = regenerate_response(format_prompt, initial_response, do_print=False, max_attempts=max_attempts)
+    patched_response = regenerate_response(format_prompt, initial_response, do_print=False)
     
     # Then, handle incomplete responses
     final_response = patch_incomplete_response(format_prompt, patched_response, do_print=False)
