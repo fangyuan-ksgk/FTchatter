@@ -1,3 +1,12 @@
+#################
+##   __      _ ##
+## o'')}____// ##
+##  `_/      ) ##
+##  (_(_/-(_/  ##
+#################
+##   OOC Data  ##
+#################
+
 # Out Of Character Queries are questions Agent should NOT be asking to Maria
 # -- We want Maria to reject them when these query occurs 
 ooc_queries = [
