@@ -64,7 +64,7 @@ def detect_incomplete_issue(response):
     
     return not is_complete
 
-def get_response_from_finetune_checkpoint(format_prompt, do_print=True, temperature=0.0, max_tokens=512):
+def get_response_from_finetune_checkpoint(format_prompt, do_print=True, temperature=0.0, max_tokens=512, prefix=""):
     """
     - Using vLLM to serve the fine-tuned Llama3 checkpoint
     - v6 full precision checkpoint is adopted here
@@ -87,9 +87,23 @@ def get_response_from_finetune_checkpoint(format_prompt, do_print=True, temperat
                 },
             )
 
-    if do_print:
-        print("Maria: ", end="")
-    response_text = ""
+    # print("- Line 92 -")
+    # if prefix:
+    #     print("Maria: ", prefix.strip())
+    # response_text = ""
+    # for response in stream:
+    #     txt = response.choices[0].text
+    #     if txt == "\n":
+    #         continue
+    #     if do_print:
+    #         print(txt, end="")
+    #     response_text += txt
+    # response_text += "\n"
+    # return response_text
+
+    if prefix and do_print:
+        print("Maria: ", prefix.strip(), end="")
+    response_text = prefix if prefix else ""
     for response in stream:
         txt = response.choices[0].text
         if txt == "\n":
@@ -99,7 +113,7 @@ def get_response_from_finetune_checkpoint(format_prompt, do_print=True, temperat
         response_text += txt
     response_text += "\n"
     if do_print:
-        print("")
+        print()  # Add a newline after the complete response
     return response_text
 
 def patch_incomplete_response(format_prompt, initial_response, do_print=True):
@@ -110,24 +124,30 @@ def patch_incomplete_response(format_prompt, initial_response, do_print=True):
     if detect_incomplete_issue(initial_response):
         # print("--- Incomplete Detected ---")
         # Continue generation with higher temperature
+        # print("Line - 113")
         continuation = get_response_from_finetune_checkpoint(
             format_prompt + initial_response,
             do_print=do_print,
             temperature=0.7,
-            max_tokens=100  # Adjust as needed
+            max_tokens=100,  # Adjust as needed
+            prefix=initial_response
         )
         return initial_response.strip() + continuation.strip()
     return initial_response
 
 
 def continue_from_prefix(format_prompt, prefix, do_print):
+    # if do_print:
+    #     print("Maria: ", prefix)
+        
     continuation = get_response_from_finetune_checkpoint(
-        format_prompt + prefix,
+        format_prompt + prefix.strip(),
         do_print=do_print,
         temperature=0.7,
-        max_tokens=120  # Adjust as needed
+        max_tokens=120,  # Adjust as needed
+        prefix=prefix
     )
-    return prefix.strip() + continuation.strip()
+    return prefix + continuation.strip()
 
 
 # def get_response_with_patch(format_prompt, do_print=True):
@@ -157,36 +177,36 @@ ok_responses = [
 ]
 
 
-from semantic_router import Route
-from semantic_router.encoders import CohereEncoder
-from semantic_router.layer import RouteLayer
+# from semantic_router import Route
+# from semantic_router.encoders import CohereEncoder
+# from semantic_router.layer import RouteLayer
 
-# Initialize the encoder and routes
-encoder = CohereEncoder()
+# # Initialize the encoder and routes
+# encoder = CohereEncoder()
 
-ooc_query_route = Route(
-    name="OOC_Query",
-    utterances=ooc_queries
-)
+# ooc_query_route = Route(
+#     name="OOC_Query",
+#     utterances=ooc_queries
+# )
 
-ooc_response_route = Route(
-    name="OOC_Response",
-    utterances=ooc_responses
-)
+# ooc_response_route = Route(
+#     name="OOC_Response",
+#     utterances=ooc_responses
+# )
 
-ok_response_route = Route(
-    name="OK_Response",
-    utterances=ok_responses
-)
+# ok_response_route = Route(
+#     name="OK_Response",
+#     utterances=ok_responses
+# )
 
-routes = [ooc_query_route, ooc_response_route, ok_response_route]
-rl = RouteLayer(routes=routes, encoder=encoder)
+# routes = [ooc_query_route, ooc_response_route, ok_response_route]
+# rl = RouteLayer(routes=routes, encoder=encoder)
 
-def detect_ooc_query(utterance):
-    """
-    Detect if the query is out-of-character (OOC)
-    """
-    return rl(utterance).name == "OOC_Query"
+# def detect_ooc_query(utterance):
+#     """
+#     Detect if the query is out-of-character (OOC)
+#     """
+#     return rl(utterance).name == "OOC_Query"
 
 # def detect_ooc_response(utterance):
 #     """
@@ -248,27 +268,33 @@ def predict_em(sample_text, model = patch_model, tokenizer = patch_tokenizer, th
 def detect_ooc_response(utterance):
     """
     Detect if the response is out-of-character (OOC)
+    Detect if the response is from Agent
     """
     return predict_em(utterance, patch_model, patch_tokenizer, 0.8, 0.)[0] == "Agent"
 
+def detect_customer_response(utterance):
+    """ 
+    Detect if response is from Customer
+    """
+    customer_id = predict_em(utterance, patch_model, patch_tokenizer, 0.8, 0.6)[0] == "Customer"
+    detect_keys = ["fwd", "FWD", "insurance", "product"]
+    detect = any(key in utterance for key in detect_keys)
+    return customer_id or detect 
 
-
+    
 def regenerate_response(format_prompt, initial_response, do_print=True, max_attempts=3):
     """
     Regenerate response if OOC is detected
     - Random Choice of OOC Patch (Prefix which has low-propability of being OOC response)
     - Continue generation from the OOC Patch
     """
-    
-
     # for _ in range(max_attempts):
     if not detect_ooc_response(initial_response):
+        print("Maria: ", initial_response.strip())
         return initial_response
     
     initial_prefix = random.choice(ooc_patch)
-    initial_response = continue_from_prefix(format_prompt, initial_prefix, do_print=False)
-    if do_print:
-        print("Maria: ", initial_response)
+    initial_response = continue_from_prefix(format_prompt, initial_prefix, do_print=True)
     
     return initial_response  # Return the last attempt even if it's still OOC
 
@@ -281,13 +307,12 @@ def get_response_with_patch(format_prompt, do_print=True, max_attempts=3):
     initial_response = get_response_from_finetune_checkpoint(format_prompt, do_print=False)
     
     # First, handle OOC responses
-    patched_response = regenerate_response(format_prompt, initial_response, do_print=False)
+    patched_response = regenerate_response(format_prompt, initial_response, do_print=True)
     
     # Then, handle incomplete responses
-    final_response = patch_incomplete_response(format_prompt, patched_response, do_print=False)
+    final_response = patch_incomplete_response(format_prompt, patched_response, do_print=True)
     
     # Print only the final response if do_print is True
     if do_print:
-        print("Maria: ", final_response)
-    
+        print("")    
     return final_response
