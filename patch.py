@@ -19,6 +19,11 @@ ooc_queries = [
     "I am Maria",
 ]
 
+non_ooc_queries = [
+    "FWD has been around for about 10 years. We do have some credibility there",
+    "FWD provides very unique products which gives you additional coverage against rare diseases",
+]
+
 
 # Prefix which Maria will use when it generates OOC response
 # --- When we detect OOC behavior from Maria, we replace the prefix and let Maria continue from the following
