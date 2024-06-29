@@ -64,6 +64,45 @@ def detect_incomplete_issue(response):
     
     return not is_complete
 
+
+def get_response_from_base(format_prompt, do_print=True, temperature=0.0, max_tokens=512, prefix=""):
+    """ 
+    - Using vLLM 
+    """
+    client = OpenAI(api_key="EMPTY", base_url="http://ec2-13-229-24-160.ap-southeast-1.compute.amazonaws.com:8000/v1")
+    model_name = "MaziyarPanahi/Meta-Llama-3-8B-Instruct-GPTQ"
+    # Streaming bit of the client
+    stream = client.completions.create(
+                model=model_name,
+                prompt=format_prompt,
+                max_tokens=max_tokens,
+                temperature=temperature,
+                stop=["<|eot_id|>"],
+                stream=True,
+                extra_body={
+                    "repetition_penalty": 1.1,
+                    "length_penalty": 1.0,
+                    "min_tokens": 0,
+                },
+            )
+
+    # if prefix and do_print:
+    #     print("Maria: ", prefix.strip(), end="")
+    if do_print:
+        print("Baseline Maria: ", end="")
+    response_text = prefix if prefix else ""
+    for response in stream:
+        txt = response.choices[0].text
+        if txt == "\n":
+            continue
+        if do_print:
+            print(txt, end="")
+        response_text += txt
+    response_text += "\n"
+    if do_print:
+        print()  # Add a newline after the complete response
+    return response_text
+
 def get_response_from_finetune_checkpoint(format_prompt, do_print=True, temperature=0.0, max_tokens=512, prefix=""):
     """
     - Using vLLM to serve the fine-tuned Llama3 checkpoint
@@ -87,22 +126,8 @@ def get_response_from_finetune_checkpoint(format_prompt, do_print=True, temperat
                 },
             )
 
-    # print("- Line 92 -")
-    # if prefix:
-    #     print("Maria: ", prefix.strip())
-    # response_text = ""
-    # for response in stream:
-    #     txt = response.choices[0].text
-    #     if txt == "\n":
-    #         continue
-    #     if do_print:
-    #         print(txt, end="")
-    #     response_text += txt
-    # response_text += "\n"
-    # return response_text
-
     if prefix and do_print:
-        print("Maria: ", prefix.strip(), end="")
+        print("FineTune-Maria: ", prefix.strip(), end="")
     response_text = prefix if prefix else ""
     for response in stream:
         txt = response.choices[0].text
@@ -297,6 +322,8 @@ def regenerate_response(format_prompt, initial_response, do_print=True, max_atte
     initial_response = continue_from_prefix(format_prompt, initial_prefix, do_print=True)
     
     return initial_response  # Return the last attempt even if it's still OOC
+
+
 
 
 
