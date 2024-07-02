@@ -344,3 +344,11 @@ def get_response_with_patch(format_prompt, do_print=True, max_attempts=3):
     if do_print:
         print("")    
     return final_response
+
+
+def get_response_without_patch(format_prompt, do_print=True, max_attempts=3):
+    """ 
+    Get response without patching OOC
+    """
+    initial_response = get_response_from_finetune_checkpoint(format_prompt, do_print=False)
+    return initial_response
