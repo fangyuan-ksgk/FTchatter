@@ -118,7 +118,7 @@ def get_response_from_finetune_checkpoint(format_prompt, do_print=True, temperat
                 prompt=format_prompt,
                 max_tokens=max_tokens,
                 temperature=temperature,
-                stop=["<|im_end|>"],
+                stop=["<eot_id>"],
                 stream=True,
                 extra_body={
                     "repetition_penalty": 1.1,
@@ -175,14 +175,6 @@ def continue_from_prefix(format_prompt, prefix, do_print):
     )
     return prefix + continuation.strip()
 
-
-# def get_response_with_patch(format_prompt, do_print=True):
-#     """
-#     Get the response with patching
-#     """
-#     initial_response = get_response_from_finetune_checkpoint(format_prompt, do_print=do_print)
-#     patched_response = patch_incomplete_response(format_prompt, initial_response, do_print=do_print)
-#     return patched_response
 
 from transformers import AutoTokenizer
 tokenizer = AutoTokenizer.from_pretrained("Ksgk-fy/genius_v2_merge")
@@ -350,8 +342,8 @@ def get_response_without_patch(format_prompt, do_print=True, max_attempts=3):
     """ 
     Get response without patching OOC
     """
-    initial_response = get_response_from_finetune_checkpoint(format_prompt, do_print=False)
-    final_response = patch_incomplete_response(format_prompt, initial_response, do_print=False)
-    print("FT-Maria: ", final_response)
+    initial_response = get_response_from_finetune_checkpoint(format_prompt, do_print=do_print)
+    # final_response = patch_incomplete_response(format_prompt, initial_response, do_print=do_print)
+    # print("FT-Maria: ", final_response)
 
     return initial_response
