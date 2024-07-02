@@ -127,19 +127,19 @@ def get_response_from_finetune_checkpoint(format_prompt, do_print=True, temperat
                 },
             )
 
-    if prefix and do_print:
-        print("FineTune-Maria: ", prefix.strip(), end="")
-    response_text = prefix if prefix else ""
+    if do_print:
+        print("FineTune-Maria: ", end="", flush=True)
+    response_text = ""
     for response in stream:
         txt = response.choices[0].text
         if txt == "\n":
             continue
         if do_print:
-            print(txt, end="")
+            print(txt, end="", flush=True)
         response_text += txt
     response_text += "\n"
     if do_print:
-        print()  # Add a newline after the complete response
+        print(flush=True)  # Add a newline after the complete response
     return response_text
 
 def patch_incomplete_response(format_prompt, initial_response, do_print=True):
@@ -351,4 +351,7 @@ def get_response_without_patch(format_prompt, do_print=True, max_attempts=3):
     Get response without patching OOC
     """
     initial_response = get_response_from_finetune_checkpoint(format_prompt, do_print=False)
+    final_response = patch_incomplete_response(format_prompt, initial_response, do_print=False)
+    print("FT-Maria: ", final_response)
+
     return initial_response
