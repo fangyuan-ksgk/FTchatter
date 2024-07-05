@@ -6,6 +6,8 @@ import warnings
 from patch import *
 warnings.filterwarnings("ignore", category=FutureWarning)
 
+client = OpenAI()
+
 def formattting_query_prompt_func_with_sys(prompt, sys_prompt,
                                            tokenizer,
                                            completion = "####Dummy-Answer"):
@@ -34,6 +36,8 @@ def formatting_query_prompt(message_history,
     format_prompt = tokenizer.apply_chat_template(messages, tokenize=False)
     query_prompt = format_prompt.split(completion)[0]
     return query_prompt
+
+    
 
 
 def detect_incomplete_issue(response):
@@ -141,6 +145,16 @@ def get_response_from_finetune_checkpoint(format_prompt, do_print=True, temperat
     if do_print:
         print(flush=True)  # Add a newline after the complete response
     return response_text
+
+
+
+
+def get_oai_response(messages):
+  completion = client.chat.completions.create(
+    model="gpt-4o",
+    messages=messages
+  )
+  return completion.choices[0].message.content
 
 def patch_incomplete_response(format_prompt, initial_response, do_print=True):
     """
