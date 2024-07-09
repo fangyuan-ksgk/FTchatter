@@ -4,6 +4,7 @@ from openai import OpenAI
 import random
 import warnings
 from patch import *
+from mbti import *
 warnings.filterwarnings("ignore", category=FutureWarning)
 
 client = OpenAI()
