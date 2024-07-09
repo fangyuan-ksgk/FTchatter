@@ -362,3 +362,106 @@ def get_response_without_patch(format_prompt, do_print=True, max_attempts=3):
     # print("FT-Maria: ", final_response)
 
     return initial_response
+
+# Function to ask a question and get a response from the base model
+def ask_question_base(question, options,
+                 sys_prompt = "Roleplay as a Phillippino named Maria."):
+    """ 
+    Ask the model to provide rationale first, and then use 'Answer: 1/2' to extract the answer from the response
+    - Allow changing prompt to see change in character
+    """
+    user_input = f"{question}\n1. {options[0]}\n2. {options[1]}\nPlease provide a rationale for your choice, then end with 'Answer: 1' or 'Answer: 2'."
+    message_history_base = [{"role": "user", "content": user_input}]
+    format_prompt_base = formatting_query_prompt(message_history_base, sys_prompt, tokenizer)
+    response = get_response_from_base(format_prompt_base, do_print=True)
+    
+    # Extract the answer from the response
+    answer = None
+    if "Answer: 1" in response:
+        answer = 1
+    elif "Answer: 2" in response:
+        answer = 2
+    
+    return {"response": response, "answer": answer}
+
+def ask_question_ft(question, options,
+                 sys_prompt = "Roleplay as a Phillippino named Maria."):
+    """ 
+    Ask the model to provide rationale first, and then use 'Answer: 1/2' to extract the answer from the response
+    - Allow changing prompt to see change in character
+    """
+    user_input = f"{question}\n1. {options[0]}\n2. {options[1]}\nPlease provide a rationale for your choice, then end with 'Answer: 1' or 'Answer: 2'."
+    message_history_ft = [{"role": "user", "content": user_input}]
+    format_prompt_ft = formatting_query_prompt(message_history_ft, sys_prompt, tokenizer)
+    response = get_response_without_patch(format_prompt_ft, do_print=True)
+    
+    # Extract the answer from the response
+    answer = None
+    if "Answer: 1" in response:
+        answer = 1
+    elif "Answer: 2" in response:
+        answer = 2
+    
+    return {"response": response, "answer": answer}
+
+
+def calculate_mbti(answers):
+    """ 
+    Answers are 1 or 2 
+    """
+    # Define the scoring columns as per the image
+    columns = {
+        'E': [1, 8, 15, 22, 29, 36, 43, 50, 57, 64],
+        'I': [1, 8, 15, 22, 29, 36, 43, 50, 57, 64],
+        'S': [2, 3, 9, 10, 16, 17, 23, 24, 30, 31, 37, 38, 44, 45, 51, 52, 58, 59, 65, 66],
+        'N': [2, 3, 9, 10, 16, 17, 23, 24, 30, 31, 37, 38, 44, 45, 51, 52, 58, 59, 65, 66],
+        'T': [4, 5, 11, 12, 18, 19, 25, 26, 32, 33, 39, 40, 46, 47, 53, 54, 60, 61, 67, 68],
+        'F': [4, 5, 11, 12, 18, 19, 25, 26, 32, 33, 39, 40, 46, 47, 53, 54, 60, 61, 67, 68],
+        'J': [6, 7, 13, 14, 20, 21, 27, 28, 34, 35, 41, 42, 48, 49, 55, 56, 62, 63, 69, 70],
+        'P': [6, 7, 13, 14, 20, 21, 27, 28, 34, 35, 41, 42, 48, 49, 55, 56, 62, 63, 69, 70]
+    }
+    
+    # Initialize counters for each type
+    scores = {key: 0 for key in columns.keys()}
+    
+    # Count the answers
+    for i, answer in enumerate(answers, start=1):
+        for type_, questions in columns.items():
+            if i in questions:
+                if type_ in ['E', 'S', 'T', 'J']:
+                    scores[type_] += 1 if answer == 1 else 0
+                else:  # I, N, F, P
+                    scores[type_] += 1 if answer == 2 else 0
+    
+    # Calculate the final type
+    mbti_type = ''
+    mbti_type += 'E' if scores['E'] > scores['I'] else 'I'
+    mbti_type += 'S' if scores['S'] > scores['N'] else 'N'
+    mbti_type += 'T' if scores['T'] > scores['F'] else 'F'
+    mbti_type += 'J' if scores['J'] > scores['P'] else 'P'
+    
+    return mbti_type, scores
+
+def test_mbti(model="base", sys_prompt = "Roleplay as a Phillippino named Maria."):
+    if model == "base":
+        ask_question = ask_question_base
+    elif model == "ft":
+        ask_question = ask_question_ft
+    else:
+        raise ValueError(f"Model {model} not supported")
+    
+    personality_results = []
+    for question in personality_questions:
+        print(f"\nQuestion: {question['question']}")
+        answer = None
+        while not answer:
+            result = ask_question(question['question'], question['options'], sys_prompt = "Roleplay as a Phillippino named Maria.")
+            rationale, answer = result["response"], result["answer"]
+        personality_results.append(answer)
+        print(f"Response: {rationale}")
+        
+    print("\n-------- Collect MBTI Result ---------\n")
+    mbti_result = calculate_mbti(personality_results)
+    print(f"MBTI: {mbti_result[0]}")
+    print(f"MBTI Scores: {mbti_result[1]}")
+    return mbti_result
