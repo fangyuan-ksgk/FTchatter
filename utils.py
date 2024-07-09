@@ -94,7 +94,7 @@ def get_response_from_base(format_prompt, do_print=True, temperature=0.0, max_to
     # if prefix and do_print:
     #     print("Maria: ", prefix.strip(), end="")
     if do_print:
-        print("Baseline Maria: ", end="")
+        print("Baseline llama3: ", end="")
     response_text = prefix if prefix else ""
     for response in stream:
         txt = response.choices[0].text
@@ -133,7 +133,7 @@ def get_response_from_finetune_checkpoint(format_prompt, do_print=True, temperat
             )
 
     if do_print:
-        print("FineTune-Maria: ", end="", flush=True)
+        print("FineTune llama3: ", end="", flush=True)
     response_text = ""
     for response in stream:
         txt = response.choices[0].text
