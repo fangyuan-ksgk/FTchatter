@@ -426,6 +426,8 @@ def calculate_mbti(answers):
     
     # Count the answers
     for i, answer in enumerate(answers, start=1):
+        if answer == 0:
+            continue
         for type_, questions in columns.items():
             if i in questions:
                 if type_ in ['E', 'S', 'T', 'J']:
@@ -454,9 +456,13 @@ def test_mbti(model="base", sys_prompt = "Roleplay as a Phillippino named Maria.
     for question in personality_questions:
         print(f"\nQuestion: {question['question']}")
         answer = None
-        while not answer:
+        attempts = 0
+        while not answer and attempts < 3:
             result = ask_question(question['question'], question['options'], sys_prompt = "Roleplay as a Phillippino named Maria.")
             rationale, answer = result["response"], result["answer"]
+            attempts += 1
+        if not answer:
+            answer = 0
         personality_results.append(answer)
         print(f"Response: {rationale}")
         
