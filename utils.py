@@ -116,7 +116,7 @@ def get_response_from_finetune_checkpoint(format_prompt, do_print=True, temperat
     # Serving bit of the client
     client = OpenAI(api_key="EMPTY", base_url="http://43.218.77.178:8000/v1")    
     # model_name = "Ksgk-fy/ecoach_philippine_v7_merge"
-    model_name = "Ksgk-fy/ecoach_philippine_v10_intro_merge"
+    model_name = "Ksgk-fy/ecoach_phil_v2_2"
     # Streaming bit of the client
     stream = client.completions.create(
                 model=model_name,
