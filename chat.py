@@ -7,13 +7,15 @@ cap_rounds = 3 # Maximum number of conversation rounds stored in memory
 message_history_base = []
 message_history_ft = []
 
-sys_prompt = "Roleplay as a Phillippino named Maria."
+sys_prompt = "You are Maria from Philippine, you work as a designer in Manila. You are unfamiliar with FWD. You have diabetes and worry about medical expenses. You arrange a chat with Alex from FWD insurance at a starbucks. Keep your response concise."
+
 message_history_gpt4o = [{"role":"system", "content":sys_prompt}]
 
 i = 0
 while i<10:
-    user_input = input("You: ")
-    print(f"\nAgent: {user_input}")
+    print("------")
+    user_input = input("Agent: ")
+    # print(f"\nAgent: {user_input}")
     message_history_base.append({"role": "user", "content": user_input})
     message_history_ft.append({"role": "user", "content": user_input})
     message_history_gpt4o.append({"role": "user", "content": user_input})
@@ -32,6 +34,7 @@ while i<10:
 
     message_history_base.append({"role":"assistant", "content": response_base})
     message_history_ft.append({"role":"assistant", "content":response_ft})
+    message_history_gpt4o.append({"role":"assistant", "content":response_gpt4o})
 
     message_history_base = message_history_base[-(2*cap_rounds):] # Cap on conversation history stored within memory
     message_history_ft = message_history_ft[-(2*cap_rounds):] # Cap on conversation history stored within memory
