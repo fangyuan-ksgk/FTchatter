@@ -117,8 +117,9 @@ def get_response_with_reflect(format_prompt, do_print=True, temperature=0.0, max
     - When <reflect> tag is detected, stream response after </reflect> tag
     - Otherwise, stream the response as usual, but whenever a <reflect> is detected, follow the logic above
     """
-    client = OpenAI(api_key="EMPTY", base_url="http://43.218.77.178:8000/v1")    
-    model_name = "hugging-quants/Meta-Llama-3.1-8B-Instruct-AWQ-INT4" # v0.1.3 model
+    client = OpenAI(api_key="EMPTY", base_url="http://43.218.77.178:8000/v1")   
+    model_name = "Ksgk-fy/maria_v113-fp8-dynamic" # v0.1.3 model
+    # model_name = "hugging-quants/Meta-Llama-3.1-8B-Instruct-AWQ-INT4" # v0.1.3 model
 
     # Initialize variables
     response_text = ""
@@ -188,7 +189,9 @@ def get_response_from_finetune_checkpoint(format_prompt, do_print=True, temperat
     # model_name = "Ksgk-fy/ecoach_philippine_v10_merge" # v0.1.0 model
     # model_name = "Ksgk-fy/ecoach_phil_v2_2" # v0.1.1 model
     # model_name = "Ksgk-fy/ecoach_phil_v11_3" # v0.1.2 model
-    model_name = "hugging-quants/Meta-Llama-3.1-8B-Instruct-AWQ-INT4" # v0.1.3 model
+    model_name = "Ksgk-fy/maria_v113-fp8-dynamic" # v0.1.3 model
+    # model_name = "hugging-quants/Meta-Llama-3.1-8B-Instruct-AWQ-INT4" # v0.1.4 model
+
     # Streaming bit of the client
     stream = client.completions.create(
                 model=model_name,
