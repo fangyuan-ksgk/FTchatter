@@ -189,6 +189,7 @@ def get_response_from_finetune_checkpoint(format_prompt, do_print=True, temperat
     # model_name = "Ksgk-fy/ecoach_phil_v2_2" # v0.1.1 model
     # model_name = "Ksgk-fy/ecoach_phil_v11_3" # v0.1.2 model
     model_name = "Ksgk-fy/Maria_v014_AWQ" # v0.1.3 model
+
     # Streaming bit of the client
     stream = client.completions.create(
                 model=model_name,
