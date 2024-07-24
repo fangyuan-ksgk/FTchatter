@@ -108,6 +108,76 @@ def get_response_from_base(format_prompt, do_print=True, temperature=0.0, max_to
         print()  # Add a newline after the complete response
     return response_text
 
+
+# Stream only when </reflect> tag is detected
+def get_response_with_reflect(format_prompt, do_print=True, temperature=0.0, max_tokens=512):
+    """ 
+    Chat with fine-tuned model with the inclusion of reflect tag 
+    - Only stream out the response, but never the thought
+    - When <reflect> tag is detected, stream response after </reflect> tag
+    - Otherwise, stream the response as usual, but whenever a <reflect> is detected, follow the logic above
+    """
+    client = OpenAI(api_key="EMPTY", base_url="http://43.218.77.178:8000/v1")    
+    model_name = "Ksgk-fy/Maria_v014_AWQ" # v0.1.3 model
+
+    # Initialize variables
+    response_text = ""
+    in_reflect = False
+    buffer = ""
+
+    # Stream the response
+    stream = client.completions.create(
+        model=model_name,
+        prompt=format_prompt,
+        max_tokens=max_tokens,
+        temperature=temperature,
+        stop=["<eot_id>"],
+        stream=True,
+        extra_body={
+            "repetition_penalty": 1.1,
+            "length_penalty": 1.0,
+            "min_tokens": 0,
+        },
+    )
+
+    if do_print:
+        print("FineTune llama3: ", end="", flush=True)
+
+    for response in stream:
+        txt = response.choices[0].text
+        if txt == "\n":
+            continue
+
+        if "<reflect>" in txt:
+            in_reflect = True
+            buffer = ""
+        elif "</reflect>" in txt:
+            in_reflect = False
+            continue
+
+        if in_reflect:
+            buffer += txt
+        else:
+            if buffer:
+                response_text += buffer
+                buffer = ""
+            response_text += txt
+            if do_print:
+                print(txt, end="", flush=True)
+
+    # Add any remaining buffered text
+    if buffer:
+        response_text += buffer
+
+    response_text += "\n"
+    if do_print:
+        print(flush=True)  # Add a newline after the complete response
+
+    return response_text
+
+
+
+
 def get_response_from_finetune_checkpoint(format_prompt, do_print=True, temperature=0.0, max_tokens=512, prefix=""):
     """
     - Using vLLM to serve the fine-tuned Llama3 checkpoint
@@ -118,7 +188,7 @@ def get_response_from_finetune_checkpoint(format_prompt, do_print=True, temperat
     # model_name = "Ksgk-fy/ecoach_philippine_v10_merge" # v0.1.0 model
     # model_name = "Ksgk-fy/ecoach_phil_v2_2" # v0.1.1 model
     # model_name = "Ksgk-fy/ecoach_phil_v11_3" # v0.1.2 model
-    model_name = "Ksgk-fy/maria_v113-fp8-dynamic" # v0.1.3 model
+    model_name = "Ksgk-fy/Maria_v014_AWQ" # v0.1.3 model
     # Streaming bit of the client
     stream = client.completions.create(
                 model=model_name,
