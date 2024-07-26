@@ -38,9 +38,6 @@ def formatting_query_prompt(message_history,
     query_prompt = format_prompt.split(completion)[0]
     return query_prompt
 
-    
-
-
 def detect_incomplete_issue(response):
     """
     Check if the response ends with common sentence-ending punctuation or emojis.
@@ -91,9 +88,9 @@ def get_response_from_base(format_prompt, do_print=True, temperature=0.0, max_to
                 },
             )
 
-    # if prefix and do_print:
-    #     print("Maria: ", prefix.strip(), end="")
-    if do_print:
+    if prefix and do_print:
+        print("Baseline with Prefix: ", prefix.strip(), end="")
+    if not prefix and do_print:
         print("Baseline llama3: ", end="")
     response_text = prefix if prefix else ""
     for response in stream:
